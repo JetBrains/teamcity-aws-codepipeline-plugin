@@ -18,4 +18,5 @@ apply plugin: 'com.github.rodm.teamcity-common'
 
 dependencies {
     compile "com.amazonaws:aws-java-sdk:${awsSDKVersion}"
+    compile files("$rootProject.projectDir/amazon-util/amazon-util.jar")
 }
