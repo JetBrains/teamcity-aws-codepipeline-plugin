@@ -1,0 +1,2 @@
+teamcity-aws-codepipeline-plugin
+==============================

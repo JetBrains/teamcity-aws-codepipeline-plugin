@@ -1,0 +1,69 @@
+/*
+ * Copyright 2000-2016 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "com.github.rodm:gradle-teamcity-plugin:0.8.2"
+    }
+}
+
+
+ext.teamcityVersion = hasProperty('teamcity.version') ? property('teamcity.version') : '10.0-SNAPSHOT'
+
+ext.teamcityDir = hasProperty('teamcity.dir') ? property('teamcity.dir') : "$rootDir/teamcity/servers/TeamCity-${teamcityVersion}"
+ext.teamcityDataDir = "$rootDir/teamcity/data/" + teamcityVersion
+ext.teamcityJavaHome = System.properties['java.home']
+
+ext.awsSDKVersion = hasProperty('aws.sdk.version') ? property('aws.sdk.version') : '1.10.51'
+
+ext.javaVersion = hasProperty('plugin.java.version') ? property('plugin.java.version') : '1.7'
+
+
+apply plugin: 'idea'
+idea {
+    project {
+        vcs = 'Git'
+    }
+}
+
+subprojects {
+    group = 'jetbrains.buildServer.codepipeline'
+}
+
+configure(subprojects - project(':build')) {
+    apply plugin: 'java'
+
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    test {
+        useTestNG()
+        testLogging.showStandardStreams = true
+    }
+
+    repositories {
+        mavenCentral()
+    }
+}
