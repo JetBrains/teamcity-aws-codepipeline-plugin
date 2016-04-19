@@ -17,7 +17,7 @@
 apply plugin: 'com.github.rodm.teamcity-agent'
 
 dependencies {
-    compile project(':aws-codedeploy-common')
+    compile project(':aws-codepipeline-common')
 }
 
 teamcity {
