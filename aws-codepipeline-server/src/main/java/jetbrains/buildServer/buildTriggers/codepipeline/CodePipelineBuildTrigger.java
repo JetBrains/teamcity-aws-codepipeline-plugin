@@ -18,10 +18,8 @@ package jetbrains.buildServer.buildTriggers.codepipeline;
 
 import com.amazonaws.services.codepipeline.AWSCodePipelineClient;
 import com.amazonaws.services.codepipeline.model.*;
-import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.buildTriggers.*;
 import jetbrains.buildServer.codepipeline.CodePipelineUtil;
-import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.*;
 import jetbrains.buildServer.util.CollectionsUtil;
 import jetbrains.buildServer.util.Converter;
@@ -30,6 +28,7 @@ import jetbrains.buildServer.util.amazon.AWSCommonParams;
 import jetbrains.buildServer.util.amazon.AWSException;
 import jetbrains.buildServer.util.filters.Filter;
 import jetbrains.buildServer.web.openapi.PluginDescriptor;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -44,7 +43,7 @@ import static jetbrains.buildServer.codepipeline.CodePipelineConstants.*;
  */
 public class CodePipelineBuildTrigger extends BuildTriggerService {
   @NotNull
-  private static final Logger LOG = Logger.getInstance(Loggers.VCS_CATEGORY + CodePipelineBuildTrigger.class);
+  private static final Logger LOG = Logger.getLogger(CodePipelineBuildTrigger.class);
 
   @NotNull
   private final PluginDescriptor myPluginDescriptor;
@@ -158,14 +157,14 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
 
       @NotNull
       private Map<String, String> getCustomBuildParameters(@NotNull Job job, @NotNull BuildTriggerDescriptor triggerDescriptor) {
-        final HashMap<String, String> params = new HashMap<>(triggerDescriptor.getProperties());
+        final HashMap<String, String> params = new HashMap<String, String>(triggerDescriptor.getProperties());
         params.put(JOB_ID, job.getId());
         return params;
       }
 
       @NotNull
       private String msgForBt(@NotNull String msg, @NotNull SBuildType bt) {
-        return bt + ":" + msg;
+        return bt + ": " + msg;
       }
 
       @NotNull

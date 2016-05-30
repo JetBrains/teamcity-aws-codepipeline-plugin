@@ -21,10 +21,8 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
-import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.agent.*;
-import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.util.CollectionsUtil;
 import jetbrains.buildServer.util.EventDispatcher;
 import jetbrains.buildServer.util.FileUtil;
@@ -33,6 +31,7 @@ import jetbrains.buildServer.util.amazon.AWSClients;
 import jetbrains.buildServer.util.amazon.AWSCommonParams;
 import jetbrains.buildServer.util.amazon.AWSException;
 import jetbrains.buildServer.util.filters.Filter;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,7 +49,7 @@ import static jetbrains.buildServer.util.amazon.AWSCommonParams.createAWSClients
  */
 public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
   @NotNull
-  private static final Logger LOG = Logger.getInstance(Loggers.VCS_CATEGORY + CodePipelineBuildListener.class);
+  private static final Logger LOG = Logger.getLogger(CodePipelineBuildListener.class);
 
   private boolean myJobInputProcessed;
   private String myJobID;
