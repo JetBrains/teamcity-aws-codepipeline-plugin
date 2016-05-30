@@ -1,0 +1,46 @@
+{
+  "category": "Build",
+  "provider": "TeamCity",
+  "owner": "Custom",
+  "version": "1",
+  "settings": {
+    "entityUrlTemplate": "{Config:TeamCity Server URL}/viewType.html?buildTypeId={Config:Build Type ID}",
+    "executionUrlTemplate": "{Config:TeamCity Server URL}/viewLog.html?buildId={ExternalExecutionId}&tab=buildResultsDiv"
+  },
+  "configurationProperties": [
+    {
+      "name": "TeamCity Server URL",
+      "required": true,
+      "key": true,
+      "secret": false,
+      "queryable": false,
+      "type": "String"
+    },
+    {
+      "name": "Build Type ID",
+      "description": "Corresponding TeamCity build type external ID",
+      "required": true,
+      "key": true,
+      "secret": false,
+      "queryable": false,
+      "type": "String"
+    },
+    {
+      "name": "Action Token",
+      "description": "Must be unique, match the corresponding field in the TeamCity build trigger settings, satisfy regular expression pattern: [a-zA-Z0-9_-]+] and have length <= 20",
+      "required": true,
+      "key": true,
+      "secret": false,
+      "queryable": true,
+      "type": "String"
+    }
+  ],
+  "inputArtifactDetails": {
+    "maximumCount": 5,
+    "minimumCount": 0
+  },
+  "outputArtifactDetails": {
+    "maximumCount": 5,
+    "minimumCount": 0
+  }
+}
