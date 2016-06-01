@@ -39,5 +39,7 @@ public interface CodePipelineConstants {
   String ACTION_TOKEN_PARAM = "codepipeline_action_tocken";
   String ACTION_TOKEN_LABEL = "Action Token";
 
+  String POLL_INTERVAL_CONFIG_PARAM = "codepipeline_poll_interval";
+
   String MULTILINE_SPLIT_REGEX = " *[,\n\r] *";
 }
