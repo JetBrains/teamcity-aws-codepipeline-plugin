@@ -178,7 +178,7 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
       public int getPollInterval(@NotNull PolledTriggerContext context) {
         try {
           final String pollInterval = context.getBuildType().getConfigParameters().get(POLL_INTERVAL_CONFIG_PARAM);
-          if (pollInterval != null) Integer.parseInt(pollInterval);
+          if (pollInterval != null) return Integer.parseInt(pollInterval);
         } catch (NumberFormatException e) {
           LOG.warn(msgForBt("Unexpected custom poll interval value provided by " + POLL_INTERVAL_CONFIG_PARAM + " configuration parameter: " + e.getMessage(), context.getBuildType()));
         }
