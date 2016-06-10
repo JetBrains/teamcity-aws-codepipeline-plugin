@@ -43,10 +43,3 @@
         <span class="error" id="error_${artifact_paths_param}"></span>
     </td>
 </tr>
-<tr>
-    <th><label for="${artifact_paths_param}">${artifact_paths_label}:</label></th>
-    <td><props:textProperty name="${artifact_paths_param}" className="longField" maxlength="256" expandable="true"/><a href="https://console.aws.amazon.com/codepipeline" target="_blank">Open CodePipeline Console</a>
-        <span class="smallNote">Newline-separated paths to action output artifact paths. Must match the corresponding AWS CodePipeline action output artifact setting. Leave blank if no artifacts need to be published.</span>
-        <span class="error" id="error_${artifact_paths_param}"></span>
-    </td>
-</tr>
