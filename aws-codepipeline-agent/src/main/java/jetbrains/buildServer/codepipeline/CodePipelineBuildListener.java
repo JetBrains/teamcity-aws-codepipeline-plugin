@@ -139,7 +139,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
             final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
             final File buildArtifact = FileUtil.resolvePath(build.getCheckoutDirectory(), path);
 
-            build.getBuildLogger().message("Uploading job output artifact " + s3Location.getObjectKey() + " from " + buildArtifact.getAbsolutePath() + " to " + s3Location.getObjectKey());
+            build.getBuildLogger().message("Uploading job output artifact " + s3Location.getObjectKey() + " from " + buildArtifact.getAbsolutePath());
             getArtifactS3Client(jobData.getArtifactCredentials(), params)
               .putObject(new PutObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey(), buildArtifact)
                 .withSSEAwsKeyManagementParams(getSSEAwsKeyManagementParams(jobData.getEncryptionKey())));
