@@ -23,14 +23,12 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.agent.*;
-import jetbrains.buildServer.util.CollectionsUtil;
 import jetbrains.buildServer.util.EventDispatcher;
 import jetbrains.buildServer.util.FileUtil;
 import jetbrains.buildServer.util.StringUtil;
 import jetbrains.buildServer.util.amazon.AWSClients;
 import jetbrains.buildServer.util.amazon.AWSCommonParams;
 import jetbrains.buildServer.util.amazon.AWSException;
-import jetbrains.buildServer.util.filters.Filter;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -39,10 +37,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 
-import static com.intellij.openapi.util.text.StringUtil.pluralize;
-import static jetbrains.buildServer.codepipeline.CodePipelineUtil.getArtifactPaths;
 import static jetbrains.buildServer.codepipeline.CodePipelineUtil.getJobId;
 import static jetbrains.buildServer.util.amazon.AWSCommonParams.createAWSClients;
+import static jetbrains.buildServer.codepipeline.CodePipelineConstants.*;
 
 /**
  * @author vbedrosova
@@ -76,7 +73,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
 
   @Override
   public void beforeBuildFinish(@NotNull AgentRunningBuild build, @NotNull BuildFinishedStatus buildStatus) {
-    processJobOutput(build);
+    processJobOutput(build, buildStatus);
   }
 
   private void processJobInput(@NotNull AgentRunningBuild build) {
@@ -93,11 +90,10 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
 
       final JobData jobData = getJobData(params);
 
-      validateOutputArtifacts(jobData.getOutputArtifacts(), getArtifactPaths(params));
-
       final PipelineContext pipelineContext = jobData.getPipelineContext();
       build.getBuildLogger().message(
         "This build is a part of an AWS CodePipeline pipeline: " + pipelineContext.getPipelineName() +
+          "\nLink: https://console.aws.amazon.com/codepipeline/home?region=" + params.get(AWSCommonParams.REGION_NAME_PARAM) + "#/view/" + pipelineContext.getPipelineName() +
           "\nStage: " + pipelineContext.getStage().getName() +
           "\nAction: " + pipelineContext.getAction().getName() +
           "\nJob ID: " + myJobID);
@@ -106,26 +102,33 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
       if (inputArtifacts.isEmpty()) {
         LOG.debug(msgForBuild("No input artifacts provided for the job with ID: " + myJobID, build));
       } else {
+
+        final File inputFolder = new File(params.get(ARTIFACT_INPUT_FOLDER_CONFIG_PARAM));
+        inputFolder.mkdirs();
+
         for (Artifact artifact : inputArtifacts) {
           final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
-          final File destinationFile = new File(build.getBuildTempDirectory(), s3Location.getObjectKey());
+          final File destinationFile = new File(inputFolder, s3Location.getObjectKey());
 
           build.getBuildLogger().message("Downloading job input artifact " + s3Location.getObjectKey() + " to " + destinationFile.getAbsolutePath());
           getArtifactS3Client(jobData.getArtifactCredentials(), params)
             .getObject(new GetObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey()), destinationFile);
         }
+        if (!jobData.getOutputArtifacts().isEmpty()) new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM)).mkdirs();
       }
     } catch (Throwable e) {
       failOnException(build, e);
     }
   }
 
-  private void processJobOutput(@NotNull AgentRunningBuild build) {
+  private void processJobOutput(@NotNull AgentRunningBuild build, @NotNull BuildFinishedStatus buildStatus) {
     if (myJobID == null) return;
 
     try {
       if (build.isBuildFailingOnServer()) {
         publishJobFailure(build, "Build failed");
+      } else if (BuildFinishedStatus.INTERRUPTED == buildStatus) {
+        publishJobFailure(build, "Build interrupted");
       } else {
         final Map<String, String> params = build.getSharedConfigParameters();
         final JobData jobData = getJobData(params);
@@ -134,10 +137,10 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
         if (outputArtifacts.isEmpty()) {
           LOG.debug(msgForBuild("No output artifacts expected for the job with ID: " + myJobID, build));
         } else {
-          for (String path : getArtifactPaths(params)) {
-            final Artifact artifact = getCorrespondingArtifact(path, outputArtifacts);
+          final File artifactOutputFolder = new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM));
+          for (Artifact artifact : outputArtifacts) {
+            final File buildArtifact = getBuildArtifact(artifact, jobData.getPipelineContext().getPipelineName(), artifactOutputFolder, build);
             final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
-            final File buildArtifact = FileUtil.resolvePath(build.getCheckoutDirectory(), path);
 
             build.getBuildLogger().message("Uploading job output artifact " + s3Location.getObjectKey() + " from " + buildArtifact.getAbsolutePath());
             getArtifactS3Client(jobData.getArtifactCredentials(), params)
@@ -241,33 +244,18 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
     return AWSClients.fromBasicSessionCredentials(artifactCredentials.getAccessKeyId(), artifactCredentials.getSecretAccessKey(), artifactCredentials.getSessionToken(), AWSCommonParams.getRegionName(params)).createS3Client();
   }
 
-  private void validateOutputArtifacts(@NotNull List<Artifact> jobOutputArtifacts, @NotNull List<String> buildArtifactPaths) {
-    final int outputArtifactsSize = jobOutputArtifacts.size();
-    final int artifactPathsSize = buildArtifactPaths.size();
-
-    if (outputArtifactsSize != artifactPathsSize) {
-      throw new IllegalArgumentException(CodePipelineConstants.ARTIFACT_PATHS_LABEL +
-        " parameter doesn't match the corresponding AWS CodePipeline action Output artifacts setting: " +
-        outputArtifactsSize + " " + pluralize("artifact", outputArtifactsSize) + " expected, " +
-        artifactPathsSize + " artifact " + pluralize("path", artifactPathsSize) + " provided");
-    }
-
-    for (String path : buildArtifactPaths) {
-      if (null == getCorrespondingArtifact(path, jobOutputArtifacts)) {
-        throw new IllegalArgumentException("No matching AWS CodePipeline action Output artifact found for " + path +
-          ". Each archive specified in the " + CodePipelineConstants.ARTIFACT_PATHS_LABEL + " must match an AWS CodePipeline action Output artifact by name");
+  @NotNull
+  private File getBuildArtifact(@NotNull final Artifact artifact, @NotNull final String pipelineName, @NotNull final File artifactFolder, @NotNull AgentRunningBuild build) {
+    final File parent = new File(artifactFolder, pipelineName + "/" + artifact.getName());
+    if (parent.isDirectory()) {
+      final File[] files = parent.listFiles();
+      if (files != null && files.length > 0) {
+        if (files.length > 1) {
+          build.getBuildLogger().warning("Multiple output artifacts detected in " + parent.getAbsolutePath() + ". Will publish only one of them");
+        }
+        return files[0];
       }
     }
-  }
-
-  @Nullable
-  private Artifact getCorrespondingArtifact(@NotNull String artifactPath, @NotNull List<Artifact> jobOutputArtifacts) {
-    final String name = FileUtil.getNameWithoutExtension(artifactPath);
-    return CollectionsUtil.findFirst(jobOutputArtifacts, new Filter<Artifact>() {
-      @Override
-      public boolean accept(@NotNull Artifact data) {
-        return name.equals(data.getName());
-      }
-    });
+    throw new IllegalStateException("No output artifact found in " + parent.getAbsolutePath() + " folder");
   }
 }

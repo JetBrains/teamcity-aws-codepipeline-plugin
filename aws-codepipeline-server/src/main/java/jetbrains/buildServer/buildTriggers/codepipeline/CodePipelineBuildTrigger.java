@@ -85,8 +85,9 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
       @Override
       public void triggerBuild(@NotNull PolledTriggerContext context) throws BuildTriggerException {
         try {
+          final Map<String, String> properties = context.getTriggerDescriptor().getProperties();
           final AWSCodePipelineClient codePipelineClient =
-            AWSCommonParams.createAWSClients(validateParams(context.getTriggerDescriptor().getProperties())).createCodePipeLineClient();
+            AWSCommonParams.createAWSClients(validateParams(properties)).createCodePipeLineClient();
 
           final PollForJobsRequest request = new PollForJobsRequest()
             .withActionTypeId(
@@ -96,9 +97,7 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
                 .withProvider(TEAMCITY_ACTION_PROVIDER)
                 .withVersion(getActionTypeVersion(codePipelineClient)))
             .withQueryParam(CollectionsUtil.<String>asMap(
-//              TEAMCITY_SERVER_URL_CONFIG_PROPERTY, myServerSettings.getRootUrl(),
-//              BUILD_TYPE_ID_CONFIG_PROPERTY, context.getBuildType().getExternalId(),
-              ACTION_TOKEN_CONFIG_PROPERTY, CodePipelineUtil.getActionToken(context.getTriggerDescriptor().getProperties())))
+              ACTION_TOKEN_CONFIG_PROPERTY, CodePipelineUtil.getActionToken(properties)))
             .withMaxBatchSize(1);
 
           final List<Job> jobs = codePipelineClient.pollForJobs(request).getJobs();
@@ -111,36 +110,41 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
             final Job job = jobs.get(0);
             LOG.info(msgForBt("Received job request with ID: " + job.getId() + " and nonce: " + job.getNonce(), context.getBuildType()));
 
-            final AcknowledgeJobRequest acknowledgeJobRequest = new AcknowledgeJobRequest()
-              .withJobId(job.getId())
-              .withNonce(job.getNonce());
+            try {
+              final AcknowledgeJobRequest acknowledgeJobRequest = new AcknowledgeJobRequest()
+                .withJobId(job.getId())
+                .withNonce(job.getNonce());
 
-            final String jobStatus = codePipelineClient.acknowledgeJob(acknowledgeJobRequest).getStatus();
-            if (jobStatus.equals(JobStatus.InProgress.name())) {
+              final String jobStatus = codePipelineClient.acknowledgeJob(acknowledgeJobRequest).getStatus();
+              if (jobStatus.equals(JobStatus.InProgress.name())) {
 
-              final BuildCustomizer buildCustomizer = myBuildCustomizerFactory.createBuildCustomizer(context.getBuildType(), null);
-              buildCustomizer.setParameters(getCustomBuildParameters(job, context.getTriggerDescriptor()));
+                final BuildCustomizer buildCustomizer = myBuildCustomizerFactory.createBuildCustomizer(context.getBuildType(), null);
+                buildCustomizer.setParameters(getCustomBuildParameters(job, context));
 
-              final BuildPromotion promotion = buildCustomizer.createPromotion();
-              promotion.addToQueue(TRIGGER_DISPLAY_NAME + " job with ID: " + job.getId());
+                final BuildPromotion promotion = buildCustomizer.createPromotion();
+                promotion.addToQueue(TRIGGER_DISPLAY_NAME + " job with ID: " + job.getId());
 
-              LOG.info(msgForBt("Acknowledged job with ID: " + job.getId()+ " and nonce: " + job.getNonce() + ", created build promotion " + promotion.getId(), context.getBuildType()));
+                LOG.info(msgForBt("Acknowledged job with ID: " + job.getId()+ " and nonce: " + job.getNonce() + ", created build promotion " + promotion.getId(), context.getBuildType()));
 
-            } else {
-              LOG.warn(msgForBt("Job ignored with ID: " + job.getId()+ " and nonce: " + job.getNonce() + " because job status is " + jobStatus, context.getBuildType()));
+              } else {
+                LOG.warn(msgForBt("Job ignored with ID: " + job.getId()+ " and nonce: " + job.getNonce() + " because job status is " + jobStatus, context.getBuildType()));
+              }
+            } catch (Throwable e) {
+              final BuildTriggerException buildTriggerException = processThrowable(e);
+              codePipelineClient.putJobFailureResult(
+                new PutJobFailureResultRequest().withJobId(job.getId()).withFailureDetails(
+                  new FailureDetails()
+                    .withType(FailureType.JobFailed)
+                    .withMessage(buildTriggerException.getMessage())
+                )
+              );
+              throw buildTriggerException;
             }
           } else {
             LOG.debug(msgForBt("No jobs found", context.getBuildType()));
           }
         } catch (Throwable e) {
-          if (e instanceof BuildTriggerException) throw (BuildTriggerException) e;
-
-          final AWSException awse = new AWSException(e);
-          final String details = awse.getDetails();
-          if (StringUtil.isNotEmpty(details)) LOG.error(details);
-          LOG.error(awse);
-
-          throw new BuildTriggerException(e.getMessage(), awse);
+          throw processThrowable(e);
         }
       }
 
@@ -152,13 +156,20 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
             return TEAMCITY_ACTION_PROVIDER.equals(data.getId().getProvider());
           }
         });
-        return teamCityActionType == null ? DEFAULT_ACTION_VERSION : teamCityActionType.getId().getVersion();
+        if (teamCityActionType == null) {
+          throw new BuildTriggerException("No registered " + TEAMCITY_ACTION_PROVIDER + " action type found in the AWS account");
+        }
+        return teamCityActionType.getId().getVersion();
       }
 
       @NotNull
-      private Map<String, String> getCustomBuildParameters(@NotNull Job job, @NotNull BuildTriggerDescriptor triggerDescriptor) {
-        final HashMap<String, String> params = new HashMap<String, String>(triggerDescriptor.getProperties());
-        params.put(JOB_ID, job.getId());
+      private Map<String, String> getCustomBuildParameters(@NotNull Job job, @NotNull PolledTriggerContext context) {
+        final HashMap<String, String> params = new HashMap<String, String>(context.getTriggerDescriptor().getProperties());
+        params.put(JOB_ID_CONFIG_PARAM, job.getId());
+
+        params.putIfAbsent(ARTIFACT_INPUT_FOLDER_CONFIG_PARAM, ARTIFACT_INPUT_FOLDER);
+        params.putIfAbsent(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM, ARTIFACT_OUTPUT_FOLDER);
+
         return params;
       }
 
@@ -185,6 +196,18 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
         return PolledBuildTrigger.DEFAULT_POLL_TRIGGER_INTERVAL;
       }
     };
+  }
+
+  @NotNull
+  private BuildTriggerException processThrowable(@NotNull Throwable e) {
+    if (e instanceof BuildTriggerException) return (BuildTriggerException) e;
+
+    final AWSException awse = new AWSException(e);
+    final String details = awse.getDetails();
+    if (StringUtil.isNotEmpty(details)) LOG.error(details);
+    LOG.error(awse.getMessage(), awse);
+
+    return new BuildTriggerException(e.getMessage(), awse);
   }
 
   @NotNull

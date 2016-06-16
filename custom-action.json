@@ -4,12 +4,13 @@
   "owner": "Custom",
   "version": "1",
   "settings": {
-    "entityUrlTemplate": "{Config:TeamCity Server URL}/viewType.html?buildTypeId={Config:Build Type ID}",
+    "entityUrlTemplate": "{Config:TeamCity Server URL}/viewType.html?buildTypeId={Config:Build Configuration ID}",
     "executionUrlTemplate": "{Config:TeamCity Server URL}/viewLog.html?buildId={ExternalExecutionId}&tab=buildResultsDiv"
   },
   "configurationProperties": [
     {
       "name": "TeamCity Server URL",
+      "description": "The expected URL format is http[s]://host[:port]",
       "required": true,
       "key": true,
       "secret": false,
@@ -17,8 +18,8 @@
       "type": "String"
     },
     {
-      "name": "Build Type ID",
-      "description": "Corresponding TeamCity build type external ID",
+      "name": "Build Configuration ID",
+      "description": "Corresponding TeamCity build configuration external ID",
       "required": true,
       "key": true,
       "secret": false,
@@ -26,7 +27,7 @@
       "type": "String"
     },
     {
-      "name": "Action Token",
+      "name": "Action ID",
       "description": "Must be unique, match the corresponding field in the TeamCity build trigger settings, satisfy regular expression pattern: [a-zA-Z0-9_-]+] and have length <= 20",
       "required": true,
       "key": true,

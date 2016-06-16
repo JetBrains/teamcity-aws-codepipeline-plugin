@@ -39,24 +39,6 @@ public class ParametersValidator {
     if (StringUtil.isEmptyOrSpaces(CodePipelineUtil.getActionToken(params))) {
       invalids.put(CodePipelineConstants.ACTION_TOKEN_PARAM, CodePipelineConstants.ACTION_TOKEN_LABEL + " parameter mustn't be empty");
     }
-
-    final String artifactPaths = params.get(CodePipelineConstants.ARTIFACT_PATHS_PARAM);
-    if (StringUtil.isNotEmpty(artifactPaths)) {
-      if (!ReferencesResolverUtil.containsReference(artifactPaths) || !acceptReferences) {
-        final List<String> paths = CodePipelineUtil.getArtifactPaths(artifactPaths);
-        if (params.size() == 0 || paths.size() > 5) {
-          invalids.put(CodePipelineConstants.ARTIFACT_PATHS_PARAM, CodePipelineConstants.ARTIFACT_PATHS_LABEL + " parameter must contain 0 to 5 artifact paths (limited by AWS CodePipeline)");
-        } else {
-          for (String path : paths) {
-            if (AWSUtil.getBundleType(path) == null) {
-              invalids.put(CodePipelineConstants.ARTIFACT_PATHS_PARAM, path + " provides invalid bundle type, supported bundle types are .zip, .tar and .tar.gz");
-              break;
-            }
-          }
-        }
-      }
-    }
-
     return invalids;
   }
 }

@@ -37,22 +37,11 @@ public final class CodePipelineUtil {
 
   @Nullable
   public static String getJobId(@NotNull Map<String, String> params) {
-    return params.get(CodePipelineConstants.JOB_ID);
+    return params.get(CodePipelineConstants.JOB_ID_CONFIG_PARAM);
   }
 
   @Nullable
   public static String getActionToken(@NotNull Map<String, String> params) {
     return params.get(CodePipelineConstants.ACTION_TOKEN_PARAM);
-  }
-
-  @NotNull
-  public static List<String> getArtifactPaths(@NotNull Map<String, String> params) {
-    final String artifactPathsParam = params.get(CodePipelineConstants.ARTIFACT_PATHS_PARAM);
-    return StringUtil.isEmptyOrSpaces(artifactPathsParam) ? Collections.<String>emptyList() : getArtifactPaths(artifactPathsParam);
-  }
-
-  @NotNull
-  public static List<String> getArtifactPaths(@NotNull String artifactPathsParam) {
-    return Arrays.asList(artifactPathsParam.split(CodePipelineConstants.MULTILINE_SPLIT_REGEX));
   }
 }

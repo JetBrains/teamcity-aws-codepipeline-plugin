@@ -24,22 +24,23 @@ public interface CodePipelineConstants {
   String TRIGGER_DISPLAY_NAME = "AWS CodePipeline Action";
   String TRIGGER_DESCR = "Poll AWS CodePipeline for job requests";
 
-  String TEAMCITY_ACTION_PROVIDER = "TeamCity";
-  String TEAMCITY_SERVER_URL_CONFIG_PROPERTY = "TeamCity Server URL";
-  String BUILD_TYPE_ID_CONFIG_PROPERTY = "Build Type Id";
-  String ACTION_TOKEN_CONFIG_PROPERTY = "Action Token";
-  String DEFAULT_ACTION_VERSION = "1";
+  String TEAMCITY_BUILD_TEMP_DIR = "%system.teamcity.build.tempDir%";
 
-  String JOB_ID = "codepipeline.job.id";
+  String TEAMCITY_ACTION_PROVIDER = "TeamCity";
+  String ACTION_TOKEN_CONFIG_PROPERTY = "Action ID";
+
+  String JOB_ID_CONFIG_PARAM = "codepipeline.job.id";
 
   String EDIT_PARAMS_JSP = "editCodePipelineTrigger.jsp";
 
-  String ARTIFACT_PATHS_PARAM = "codepipeline_artifact_paths";
-  String ARTIFACT_PATHS_LABEL = "Action output artifacts";
   String ACTION_TOKEN_PARAM = "codepipeline_action_tocken";
-  String ACTION_TOKEN_LABEL = "Action Token";
+  String ACTION_TOKEN_LABEL = "Action ID";
 
-  String POLL_INTERVAL_CONFIG_PARAM = "codepipeline_poll_interval";
+  String POLL_INTERVAL_CONFIG_PARAM = "codepipeline.poll.interval";
 
-  String MULTILINE_SPLIT_REGEX = " *[,\n\r] *";
+  String ARTIFACT_INPUT_FOLDER = TEAMCITY_BUILD_TEMP_DIR + "/CodePipeline/input";
+  String ARTIFACT_OUTPUT_FOLDER = TEAMCITY_BUILD_TEMP_DIR + "/CodePipeline/output";
+
+  String ARTIFACT_INPUT_FOLDER_CONFIG_PARAM = "codepipeline.artifact.input.folder";
+  String ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM = "codepipeline.artifact.output.folder";
 }
