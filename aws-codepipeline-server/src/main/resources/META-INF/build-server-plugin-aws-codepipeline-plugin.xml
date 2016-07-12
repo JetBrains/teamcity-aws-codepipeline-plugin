@@ -21,5 +21,6 @@
        default-autowire="constructor">
 
     <bean id="awsCommonParams" class="jetbrains.buildServer.util.amazon.AWSCommonParams"/>
-    <bean id="codePipelineBuildTrigger" class="jetbrains.buildServer.buildTriggers.codepipeline.CodePipelineBuildTrigger"/>
+    <bean id="codePipelineAsyncPolledBuildTrigger" class="jetbrains.buildServer.buildTriggers.codepipeline.CodePipelineAsyncPolledBuildTrigger"/>
+    <bean id="codePipelineBuildTriggerService" class="jetbrains.buildServer.buildTriggers.codepipeline.CodePipelineBuildTriggerService"/>
 </beans>
