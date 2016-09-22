@@ -21,6 +21,7 @@ import jetbrains.buildServer.buildTriggers.BuildTriggerService;
 import jetbrains.buildServer.buildTriggers.BuildTriggeringPolicy;
 import jetbrains.buildServer.buildTriggers.PolledBuildTrigger;
 import jetbrains.buildServer.buildTriggers.async.AsyncPolledBuildTriggerFactory;
+import jetbrains.buildServer.codepipeline.CodePipelineUtil;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.PropertiesProcessor;
 import jetbrains.buildServer.util.CollectionsUtil;
@@ -70,7 +71,10 @@ public class CodePipelineBuildTriggerService extends BuildTriggerService {
   @NotNull
   @Override
   public String describeTrigger(@NotNull BuildTriggerDescriptor trigger) {
-    return TRIGGER_DESCR;
+    return String.format(
+      TRIGGER_DESCR + " with %s " + ACTION_TOKEN_CONFIG_PROPERTY,
+      CodePipelineUtil.getActionToken(trigger.getProperties())
+    );
   }
 
   @NotNull
