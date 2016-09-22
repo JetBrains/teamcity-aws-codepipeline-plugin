@@ -27,14 +27,14 @@ public interface CodePipelineConstants {
   String TEAMCITY_BUILD_TEMP_DIR = "%system.teamcity.build.tempDir%";
 
   String TEAMCITY_ACTION_PROVIDER = "TeamCity";
-  String ACTION_TOKEN_CONFIG_PROPERTY = "Action ID";
+  String ACTION_TOKEN_CONFIG_PROPERTY = "ActionID";
 
   String JOB_ID_CONFIG_PARAM = "codepipeline.job.id";
 
   String EDIT_PARAMS_JSP = "editCodePipelineTrigger.jsp";
 
   String ACTION_TOKEN_PARAM = "codepipeline_action_tocken";
-  String ACTION_TOKEN_LABEL = "Action ID";
+  String ACTION_TOKEN_LABEL = "ActionID";
 
   String POLL_INTERVAL_CONFIG_PARAM = "codepipeline.poll.interval";
 
