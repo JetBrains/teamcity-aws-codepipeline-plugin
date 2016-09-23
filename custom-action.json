@@ -1,7 +1,6 @@
 {
   "category": "Build",
   "provider": "TeamCity",
-  "owner": "Custom",
   "version": "1",
   "settings": {
     "entityUrlTemplate": "{Config:TeamCityServerURL}/viewType.html?buildTypeId={Config:BuildConfigurationID}",
