@@ -19,5 +19,4 @@ rootProject.name = 'aws-codepipeline-plugin'
 include 'aws-codepipeline-common'
 include 'aws-codepipeline-agent'
 include 'aws-codepipeline-server'
-include 'build'
 
