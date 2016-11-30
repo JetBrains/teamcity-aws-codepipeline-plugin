@@ -286,6 +286,6 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
         return files[0];
       }
     }
-    throw new IllegalStateException("No output artifact found in " + parent.getAbsolutePath() + " folder");
+    throw new IllegalStateException("No output artifact " + artifact.getName() + " (zip, tar, tar.gz) found in " + artifactFolder.getAbsolutePath() + " folder");
   }
 }
