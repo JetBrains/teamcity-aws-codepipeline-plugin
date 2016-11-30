@@ -34,12 +34,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import static jetbrains.buildServer.codepipeline.CodePipelineConstants.ARTIFACT_INPUT_FOLDER_CONFIG_PARAM;
+import static jetbrains.buildServer.codepipeline.CodePipelineConstants.ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM;
 import static jetbrains.buildServer.codepipeline.CodePipelineUtil.getJobId;
 import static jetbrains.buildServer.util.amazon.AWSCommonParams.createAWSClients;
-import static jetbrains.buildServer.codepipeline.CodePipelineConstants.*;
 
 /**
  * @author vbedrosova
@@ -104,21 +106,37 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
       } else {
 
         final File inputFolder = new File(params.get(ARTIFACT_INPUT_FOLDER_CONFIG_PARAM));
-        inputFolder.mkdirs();
+        FileUtil.createDir(inputFolder);
 
         for (Artifact artifact : inputArtifacts) {
           final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
-          final File destinationFile = new File(inputFolder, s3Location.getObjectKey());
+          final File destinationFile = getInputArtifactFile(inputFolder, s3Location);
 
           build.getBuildLogger().message("Downloading job input artifact " + s3Location.getObjectKey() + " to " + destinationFile.getAbsolutePath());
           getArtifactS3Client(jobData.getArtifactCredentials(), params)
             .getObject(new GetObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey()), destinationFile);
+
+          // for backward compatibility, TW-47902
+          makeArtifactCopy(inputFolder, destinationFile, s3Location.getObjectKey());
         }
-        if (!jobData.getOutputArtifacts().isEmpty()) new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM)).mkdirs();
+        if (!jobData.getOutputArtifacts().isEmpty()) {
+          FileUtil.createDir(new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM)));
+        }
       }
     } catch (Throwable e) {
       failOnException(build, e);
     }
+  }
+
+  @NotNull
+  private File getInputArtifactFile(@NotNull File inputFolder, @NotNull S3ArtifactLocation s3Location) {
+    return new File(inputFolder, new File(s3Location.getObjectKey()).getParentFile().getName() + CodePipelineUtil.getArchiveExtension(s3Location.getObjectKey()));
+  }
+
+  private void makeArtifactCopy(@NotNull File inputFolder, @NotNull File artifactFile, @NotNull String path) throws IOException {
+    final File dest = new File(inputFolder, path);
+    FileUtil.createParentDirs(dest);
+    FileUtil.copy(artifactFile, dest);
   }
 
   private void processJobOutput(@NotNull AgentRunningBuild build, @NotNull BuildFinishedStatus buildStatus) {
@@ -246,6 +264,18 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
 
   @NotNull
   private File getBuildArtifact(@NotNull final Artifact artifact, @NotNull final String pipelineName, @NotNull final File artifactFolder, @NotNull AgentRunningBuild build) {
+    final File zip = new File(artifactFolder, artifact.getName() + ".zip");
+    if (zip.isFile()) return zip;
+
+    final File tar = new File(artifactFolder, artifact.getName() + ".tar");
+    if (tar.exists()) return tar;
+
+    final File tarGz = new File(artifactFolder, artifact.getName() + ".tar.gz");
+    if (tarGz.exists()) return tarGz;
+
+    final File tgz = new File(artifactFolder, artifact.getName() + ".tgz");
+    if (tgz.exists()) return tgz;
+
     final File parent = new File(artifactFolder, pipelineName + "/" + artifact.getName());
     if (parent.isDirectory()) {
       final File[] files = parent.listFiles();

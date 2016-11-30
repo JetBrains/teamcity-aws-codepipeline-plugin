@@ -20,7 +20,8 @@ import jetbrains.buildServer.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * @author vbedrosova
@@ -43,5 +44,14 @@ public final class CodePipelineUtil {
   @Nullable
   public static String getActionToken(@NotNull Map<String, String> params) {
     return params.get(CodePipelineConstants.ACTION_TOKEN_PARAM);
+  }
+
+  @NotNull
+  public static String getArchiveExtension(@NotNull String path) {
+    if (path.endsWith(".zip")) return ".zip";
+    if (path.endsWith(".tar")) return ".tar";
+    if (path.endsWith(".tar.gz")) return ".tar.gz";
+    if (path.endsWith(".tgz")) return ".tgz";
+    return StringUtil.EMPTY;
   }
 }
