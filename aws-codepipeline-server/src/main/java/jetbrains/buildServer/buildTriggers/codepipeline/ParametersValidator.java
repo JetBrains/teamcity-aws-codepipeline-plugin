@@ -18,14 +18,11 @@ package jetbrains.buildServer.buildTriggers.codepipeline;
 
 import jetbrains.buildServer.codepipeline.CodePipelineConstants;
 import jetbrains.buildServer.codepipeline.CodePipelineUtil;
-import jetbrains.buildServer.parameters.ReferencesResolverUtil;
 import jetbrains.buildServer.util.StringUtil;
 import jetbrains.buildServer.util.amazon.AWSCommonParams;
-import jetbrains.buildServer.util.amazon.AWSUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
