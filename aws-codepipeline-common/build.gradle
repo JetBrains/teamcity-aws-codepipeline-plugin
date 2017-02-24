@@ -17,9 +17,5 @@
 apply plugin: 'com.github.rodm.teamcity-common'
 
 dependencies {
-    compile "com.amazonaws:aws-java-sdk-codepipeline:${awsSDKVersion}"
-    compile "com.amazonaws:aws-java-sdk-codedeploy:${awsSDKVersion}"
-    compile "com.amazonaws:aws-java-sdk-s3:${awsSDKVersion}"
-    compile "com.amazonaws:aws-java-sdk-sts:${awsSDKVersion}"
-    compile amazonUtil
+    compile "jetbrains.buildServer.util:amazon-util:${amazonUtilVersion}"
 }
