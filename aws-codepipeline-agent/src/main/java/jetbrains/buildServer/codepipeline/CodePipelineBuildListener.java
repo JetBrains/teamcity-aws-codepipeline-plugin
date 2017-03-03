@@ -78,7 +78,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
     processJobOutput(build, buildStatus);
   }
 
-  private void processJobInput(@NotNull AgentRunningBuild build) {
+  private void processJobInput(@NotNull final AgentRunningBuild build) {
     if (myJobInputProcessed) return;
     myJobInputProcessed = true;
 
@@ -148,7 +148,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
     FileUtil.copy(artifactFile, dest);
   }
 
-  private void processJobOutput(@NotNull AgentRunningBuild build, @NotNull BuildFinishedStatus buildStatus) {
+  private void processJobOutput(@NotNull final AgentRunningBuild build, @NotNull final BuildFinishedStatus buildStatus) {
     if (myJobID == null) return;
 
     AWSCommonParams.withAWSClients(build.getSharedConfigParameters(), new AWSCommonParams.WithAWSClients<Void, RuntimeException>() {
