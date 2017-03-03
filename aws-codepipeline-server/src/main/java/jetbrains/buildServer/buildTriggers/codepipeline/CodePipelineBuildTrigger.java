@@ -84,65 +84,67 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
     return new PolledBuildTrigger() {
       @Override
       public void triggerBuild(@NotNull PolledTriggerContext context) throws BuildTriggerException {
+        final Map<String, String> properties = validateParams(context.getTriggerDescriptor().getProperties());
         try {
-          final Map<String, String> properties = context.getTriggerDescriptor().getProperties();
-          final AWSCodePipelineClient codePipelineClient =
-            AWSCommonParams.createAWSClients(validateParams(properties)).createCodePipeLineClient();
+          AWSCommonParams.withAWSClients(properties, clients -> {
+            final AWSCodePipelineClient codePipelineClient = clients.createCodePipeLineClient();
 
-          final PollForJobsRequest request = new PollForJobsRequest()
-            .withActionTypeId(
-              new ActionTypeId()
-                .withCategory(ActionCategory.Build)
-                .withOwner(ActionOwner.Custom)
-                .withProvider(TEAMCITY_ACTION_PROVIDER)
-                .withVersion(getActionTypeVersion(codePipelineClient)))
-            .withQueryParam(CollectionsUtil.<String>asMap(
-              ACTION_TOKEN_CONFIG_PROPERTY, CodePipelineUtil.getActionToken(properties)))
-            .withMaxBatchSize(1);
+            final PollForJobsRequest request = new PollForJobsRequest()
+              .withActionTypeId(
+                new ActionTypeId()
+                  .withCategory(ActionCategory.Build)
+                  .withOwner(ActionOwner.Custom)
+                  .withProvider(TEAMCITY_ACTION_PROVIDER)
+                  .withVersion(getActionTypeVersion(codePipelineClient)))
+              .withQueryParam(CollectionsUtil.asMap(
+                ACTION_TOKEN_CONFIG_PROPERTY, CodePipelineUtil.getActionToken(properties)))
+              .withMaxBatchSize(1);
 
-          final List<Job> jobs = codePipelineClient.pollForJobs(request).getJobs();
+            final List<Job> jobs = codePipelineClient.pollForJobs(request).getJobs();
 
-          if (jobs.size() > 0) {
-            if (jobs.size() > 1) {
-              LOG.warn(msgForBt("Received " + jobs.size() + ", but only one was expected. Will process only the first job", context.getBuildType()));
-            }
-
-            final Job job = jobs.get(0);
-            LOG.info(msgForBt("Received job request with ID: " + job.getId() + " and nonce: " + job.getNonce(), context.getBuildType()));
-
-            try {
-              final AcknowledgeJobRequest acknowledgeJobRequest = new AcknowledgeJobRequest()
-                .withJobId(job.getId())
-                .withNonce(job.getNonce());
-
-              final String jobStatus = codePipelineClient.acknowledgeJob(acknowledgeJobRequest).getStatus();
-              if (jobStatus.equals(JobStatus.InProgress.name())) {
-
-                final BuildCustomizer buildCustomizer = myBuildCustomizerFactory.createBuildCustomizer(context.getBuildType(), null);
-                buildCustomizer.setParameters(getCustomBuildParameters(job, context));
-
-                final BuildPromotion promotion = buildCustomizer.createPromotion();
-                promotion.addToQueue(TRIGGER_DISPLAY_NAME + " job with ID: " + job.getId());
-
-                LOG.info(msgForBt("Acknowledged job with ID: " + job.getId()+ " and nonce: " + job.getNonce() + ", created build promotion " + promotion.getId(), context.getBuildType()));
-
-              } else {
-                LOG.warn(msgForBt("Job ignored with ID: " + job.getId()+ " and nonce: " + job.getNonce() + " because job status is " + jobStatus, context.getBuildType()));
+            if (jobs.size() > 0) {
+              if (jobs.size() > 1) {
+                LOG.warn(msgForBt("Received " + jobs.size() + ", but only one was expected. Will process only the first job", context.getBuildType()));
               }
-            } catch (Throwable e) {
-              final BuildTriggerException buildTriggerException = processThrowable(e);
-              codePipelineClient.putJobFailureResult(
-                new PutJobFailureResultRequest().withJobId(job.getId()).withFailureDetails(
-                  new FailureDetails()
-                    .withType(FailureType.JobFailed)
-                    .withMessage(buildTriggerException.getMessage())
-                )
-              );
-              throw buildTriggerException;
+
+              final Job job = jobs.get(0);
+              LOG.info(msgForBt("Received job request with ID: " + job.getId() + " and nonce: " + job.getNonce(), context.getBuildType()));
+
+              try {
+                final AcknowledgeJobRequest acknowledgeJobRequest = new AcknowledgeJobRequest()
+                  .withJobId(job.getId())
+                  .withNonce(job.getNonce());
+
+                final String jobStatus = codePipelineClient.acknowledgeJob(acknowledgeJobRequest).getStatus();
+                if (jobStatus.equals(JobStatus.InProgress.name())) {
+
+                  final BuildCustomizer buildCustomizer = myBuildCustomizerFactory.createBuildCustomizer(context.getBuildType(), null);
+                  buildCustomizer.setParameters(getCustomBuildParameters(job, context));
+
+                  final BuildPromotion promotion = buildCustomizer.createPromotion();
+                  promotion.addToQueue(TRIGGER_DISPLAY_NAME + " job with ID: " + job.getId());
+
+                  LOG.info(msgForBt("Acknowledged job with ID: " + job.getId()+ " and nonce: " + job.getNonce() + ", created build promotion " + promotion.getId(), context.getBuildType()));
+
+                } else {
+                  LOG.warn(msgForBt("Job ignored with ID: " + job.getId()+ " and nonce: " + job.getNonce() + " because job status is " + jobStatus, context.getBuildType()));
+                }
+              } catch (Throwable e) {
+                final BuildTriggerException buildTriggerException = processThrowable(e);
+                codePipelineClient.putJobFailureResult(
+                  new PutJobFailureResultRequest().withJobId(job.getId()).withFailureDetails(
+                    new FailureDetails()
+                      .withType(FailureType.JobFailed)
+                      .withMessage(buildTriggerException.getMessage())
+                  )
+                );
+                throw buildTriggerException;
+              }
+            } else {
+              LOG.debug(msgForBt("No jobs found", context.getBuildType()));
             }
-          } else {
-            LOG.debug(msgForBt("No jobs found", context.getBuildType()));
-          }
+            return null;
+          });
         } catch (Throwable e) {
           throw processThrowable(e);
         }
