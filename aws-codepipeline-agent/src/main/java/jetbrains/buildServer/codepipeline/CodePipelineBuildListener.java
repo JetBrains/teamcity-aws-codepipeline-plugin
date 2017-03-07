@@ -19,23 +19,25 @@ package jetbrains.buildServer.codepipeline;
 import com.amazonaws.services.codepipeline.AWSCodePipelineClient;
 import com.amazonaws.services.codepipeline.model.*;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
+import com.amazonaws.services.s3.transfer.Download;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.Upload;
 import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.agent.*;
-import jetbrains.buildServer.util.EventDispatcher;
-import jetbrains.buildServer.util.FileUtil;
-import jetbrains.buildServer.util.StringUtil;
+import jetbrains.buildServer.util.*;
 import jetbrains.buildServer.util.amazon.AWSClients;
 import jetbrains.buildServer.util.amazon.AWSCommonParams;
 import jetbrains.buildServer.util.amazon.AWSException;
+import jetbrains.buildServer.util.amazon.S3Util;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -114,16 +116,25 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
             final File inputFolder = new File(params.get(ARTIFACT_INPUT_FOLDER_CONFIG_PARAM));
             FileUtil.createDir(inputFolder);
 
-            for (Artifact artifact : inputArtifacts) {
-              final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
-              final File destinationFile = getInputArtifactFile(inputFolder, s3Location);
+            final Collection<Download> downloads = S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Download, Throwable>() {
+              @NotNull
+              @Override
+              public Collection<Download> run(@NotNull final TransferManager manager) throws Throwable {
+                return CollectionsUtil.convertCollection(inputArtifacts, new Converter<Download, Artifact>() {
+                  @Override
+                  public Download createFrom(@NotNull Artifact artifact) {
+                    final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
+                    final File destinationFile = getInputArtifactFile(inputFolder, s3Location.getObjectKey());
 
-              build.getBuildLogger().message("Downloading job input artifact " + s3Location.getObjectKey() + " to " + destinationFile.getAbsolutePath());
-              getArtifactS3Client(jobData.getArtifactCredentials(), params)
-                .getObject(new GetObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey()), destinationFile);
-
-              // for backward compatibility, TW-47902
-              makeArtifactCopy(inputFolder, destinationFile, s3Location.getObjectKey());
+                    build.getBuildLogger().message("Downloading job input artifact " + s3Location.getObjectKey() + " to " + destinationFile.getAbsolutePath());
+                    return manager.download(s3Location.getBucketName(), s3Location.getObjectKey(), destinationFile);
+                  }
+                });
+              }
+            });
+            // for backward compatibility, TW-47902
+            for (Download d : downloads) {
+              makeArtifactCopy(inputFolder, getInputArtifactFile(inputFolder, d.getKey()), d.getKey(), build);
             }
             if (!jobData.getOutputArtifacts().isEmpty()) {
               FileUtil.createDir(new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM)));
@@ -138,14 +149,18 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
   }
 
   @NotNull
-  private File getInputArtifactFile(@NotNull File inputFolder, @NotNull S3ArtifactLocation s3Location) {
-    return new File(inputFolder, new File(s3Location.getObjectKey()).getParentFile().getName() + CodePipelineUtil.getArchiveExtension(s3Location.getObjectKey()));
+  private File getInputArtifactFile(@NotNull File inputFolder, @NotNull String s3ObjectKey) {
+    return new File(inputFolder, new File(s3ObjectKey).getParentFile().getName() + CodePipelineUtil.getArchiveExtension(s3ObjectKey));
   }
 
-  private void makeArtifactCopy(@NotNull File inputFolder, @NotNull File artifactFile, @NotNull String path) throws IOException {
+  private void makeArtifactCopy(@NotNull File inputFolder, @NotNull File artifactFile, @NotNull String path, @NotNull AgentRunningBuild build) {
     final File dest = new File(inputFolder, path);
     FileUtil.createParentDirs(dest);
-    FileUtil.copy(artifactFile, dest);
+    try {
+      FileUtil.copy(artifactFile, dest);
+    } catch (IOException e) {
+      LOG.error(msgForBuild("Failed to copy " + artifactFile + " to " + dest, build), e);
+    }
   }
 
   private void processJobOutput(@NotNull final AgentRunningBuild build, @NotNull final BuildFinishedStatus buildStatus) {
@@ -171,15 +186,24 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
               LOG.debug(msgForBuild("No output artifacts expected for the job with ID: " + myJobID, build));
             } else {
               final File artifactOutputFolder = new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM));
-              for (Artifact artifact : outputArtifacts) {
-                final File buildArtifact = getBuildArtifact(artifact, jobData.getPipelineContext().getPipelineName(), artifactOutputFolder, build);
-                final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
 
-                build.getBuildLogger().message("Uploading job output artifact " + s3Location.getObjectKey() + " from " + buildArtifact.getAbsolutePath());
-                getArtifactS3Client(jobData.getArtifactCredentials(), params)
-                  .putObject(new PutObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey(), buildArtifact)
-                    .withSSEAwsKeyManagementParams(getSSEAwsKeyManagementParams(jobData.getEncryptionKey())));
-              }
+              S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Upload, Throwable>() {
+                @NotNull
+                @Override
+                public Collection<Upload> run(@NotNull final TransferManager manager) throws Throwable {
+                  return CollectionsUtil.convertCollection(outputArtifacts, new Converter<Upload, Artifact>() {
+                    @Override
+                    public Upload createFrom(@NotNull Artifact artifact) {
+                      final File buildArtifact = getBuildArtifact(artifact, jobData.getPipelineContext().getPipelineName(), artifactOutputFolder, build);
+                      final S3ArtifactLocation s3Location = artifact.getLocation().getS3Location();
+
+                      build.getBuildLogger().message("Uploading job output artifact " + s3Location.getObjectKey() + " from " + buildArtifact.getAbsolutePath());
+                      return manager.upload(new PutObjectRequest(s3Location.getBucketName(), s3Location.getObjectKey(), buildArtifact)
+                        .withSSEAwsKeyManagementParams(getSSEAwsKeyManagementParams(jobData.getEncryptionKey())));
+                    }
+                  });
+                }
+              });
 
               publishJobSuccess(codePipelineClient, build);
             }
