@@ -116,7 +116,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
             final File inputFolder = new File(params.get(ARTIFACT_INPUT_FOLDER_CONFIG_PARAM));
             FileUtil.createDir(inputFolder);
 
-            final Collection<Download> downloads = S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Download, Throwable>() {
+            final Collection<Download> downloads = S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Download>() {
               @NotNull
               @Override
               public Collection<Download> run(@NotNull final TransferManager manager) throws Throwable {
@@ -187,7 +187,7 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
             } else {
               final File artifactOutputFolder = new File(params.get(ARTIFACT_OUTPUT_FOLDER_CONFIG_PARAM));
 
-              S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Upload, Throwable>() {
+              S3Util.withTransferManager(getArtifactS3Client(jobData.getArtifactCredentials(), params), new S3Util.WithTransferManager<Upload>() {
                 @NotNull
                 @Override
                 public Collection<Upload> run(@NotNull final TransferManager manager) throws Throwable {
