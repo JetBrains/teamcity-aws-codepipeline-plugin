@@ -34,7 +34,7 @@ public class ParametersValidator {
     final Map<String, String> invalids = new HashMap<String, String>(AWSCommonParams.validate(params, acceptReferences));
 
     if (StringUtil.isEmptyOrSpaces(CodePipelineUtil.getActionToken(params))) {
-      invalids.put(CodePipelineConstants.ACTION_TOKEN_PARAM, CodePipelineConstants.ACTION_TOKEN_LABEL + " parameter mustn't be empty");
+      invalids.put(CodePipelineConstants.ACTION_TOKEN_PARAM, CodePipelineConstants.ACTION_TOKEN_LABEL + " parameter must not be empty");
     }
     return invalids;
   }
