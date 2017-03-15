@@ -24,6 +24,7 @@ import jetbrains.buildServer.buildTriggers.async.AsyncPolledBuildTriggerFactory;
 import jetbrains.buildServer.codepipeline.CodePipelineUtil;
 import jetbrains.buildServer.serverSide.InvalidProperty;
 import jetbrains.buildServer.serverSide.PropertiesProcessor;
+import jetbrains.buildServer.serverSide.ServerSettings;
 import jetbrains.buildServer.util.CollectionsUtil;
 import jetbrains.buildServer.util.Converter;
 import jetbrains.buildServer.util.amazon.AWSCommonParams;
@@ -43,16 +44,16 @@ public class CodePipelineBuildTriggerService extends BuildTriggerService {
   @NotNull
   private final PluginDescriptor myPluginDescriptor;
   @NotNull
-  private final AWSCommonParams myAWSCommonParams;
+  private final ServerSettings myServerSettings;
   @NotNull
   private final PolledBuildTrigger myPolicy;
 
   public CodePipelineBuildTriggerService(@NotNull PluginDescriptor pluginDescriptor,
-                                         @NotNull AWSCommonParams awsCommonParams,
+                                         @NotNull ServerSettings serverSettings,
                                          @NotNull CodePipelineAsyncPolledBuildTrigger trigger,
                                          @NotNull AsyncPolledBuildTriggerFactory triggerFactory) {
     myPluginDescriptor = pluginDescriptor;
-    myAWSCommonParams = awsCommonParams;
+    myServerSettings = serverSettings;
     myPolicy = triggerFactory.createBuildTrigger(trigger, CodePipelineAsyncPolledBuildTrigger.LOG);
   }
 
@@ -108,6 +109,6 @@ public class CodePipelineBuildTriggerService extends BuildTriggerService {
   @NotNull
   @Override
   public Map<String, String> getDefaultTriggerProperties() {
-    return myAWSCommonParams.getDefaults();
+    return AWSCommonParams.getDefaults(myServerSettings.getServerUUID());
   }
 }
