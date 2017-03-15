@@ -48,15 +48,15 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
   @NotNull
   private final PluginDescriptor myPluginDescriptor;
   @NotNull
-  private final AWSCommonParams myAWSCommonParams;
+  private final ServerSettings myServerSettings;
   @NotNull
   private final BuildCustomizerFactory myBuildCustomizerFactory;
 
   public CodePipelineBuildTrigger(@NotNull PluginDescriptor pluginDescriptor,
-                                  @NotNull AWSCommonParams awsCommonParams,
+                                  @NotNull ServerSettings serverSettings,
                                   @NotNull BuildCustomizerFactory buildCustomizerFactory) {
     myPluginDescriptor = pluginDescriptor;
-    myAWSCommonParams = awsCommonParams;
+    myServerSettings = serverSettings;
     myBuildCustomizerFactory = buildCustomizerFactory;
   }
 
@@ -237,6 +237,6 @@ public class CodePipelineBuildTrigger extends BuildTriggerService {
   @NotNull
   @Override
   public Map<String, String> getDefaultTriggerProperties() {
-    return myAWSCommonParams.getDefaults();
+    return AWSCommonParams.getDefaults(myServerSettings.getServerUUID());
   }
 }
