@@ -19,7 +19,6 @@ apply plugin: 'com.github.rodm.teamcity-server'
 dependencies {
     compile project(':aws-codepipeline-common')
     agent project(path: ':aws-codepipeline-agent', configuration: 'plugin')
-    // required to build with TeamCity 9.1.x
     compileOnly "org.jetbrains.teamcity.internal:server:${teamcityVersion}"
 }
 
