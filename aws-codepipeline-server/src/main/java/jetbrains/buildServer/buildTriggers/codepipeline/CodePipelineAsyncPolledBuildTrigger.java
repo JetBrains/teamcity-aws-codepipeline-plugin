@@ -176,13 +176,15 @@ public class CodePipelineAsyncPolledBuildTrigger extends BaseAsyncPolledBuildTri
 
   @NotNull
   private BuildTriggerException processThrowable(@NotNull Throwable e) {
-    if (e instanceof BuildTriggerException) return (BuildTriggerException) e;
+     if (e instanceof BuildTriggerException) return (BuildTriggerException) e;
 
     final AWSException awse = new AWSException(e);
     final String details = awse.getDetails();
     if (StringUtil.isNotEmpty(details)) LOG.error(details);
     LOG.error(awse.getMessage(), awse);
 
-    return new BuildTriggerException(e.getMessage(), awse);
+    return new BuildTriggerException(
+      e instanceof AWSCodePipelineException ?
+        ((AWSCodePipelineException) e).getErrorMessage() : e.getMessage(), awse);
   }
 }
