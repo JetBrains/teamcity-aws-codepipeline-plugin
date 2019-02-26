@@ -21,7 +21,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath "com.github.rodm:gradle-teamcity-plugin:1.2"
+        classpath "com.github.rodm:gradle-teamcity-plugin:0.9.1"
     }
 }
 
@@ -54,5 +54,10 @@ configure(subprojects) {
 
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
+    }
+    repositories {
+        maven {
+            url = 'https://download.jetbrains.com/teamcity-repository'
+        }
     }
 }
