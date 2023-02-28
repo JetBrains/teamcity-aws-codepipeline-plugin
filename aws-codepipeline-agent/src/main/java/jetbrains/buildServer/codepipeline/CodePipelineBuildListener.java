@@ -204,9 +204,8 @@ public class CodePipelineBuildListener extends AgentLifeCycleAdapter {
                   });
                 }
               });
-
-              publishJobSuccess(codePipelineClient, build);
             }
+            publishJobSuccess(codePipelineClient, build);
           }
         } catch (Throwable e) {
           failOnException(codePipelineClient, build, e);
